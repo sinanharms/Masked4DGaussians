@@ -8,6 +8,10 @@
 #
 # For inquiries contact  george.drettakis@inria.fr
 #
+import os 
+
+import torch
+import torchvision.utils
 
 from scene.cameras import Camera
 import numpy as np
@@ -26,7 +30,7 @@ def loadCam(args, id, cam_info, resolution_scale):
 
     # if resized_image_rgb.shape[1] == 4:
     # loaded_mask = resized_image_rgb[3:4, ...]
-
+    mask = PILtoTorch(cam_info.mask)
     return Camera(
         colmap_id=cam_info.uid,
         R=cam_info.R,
@@ -39,6 +43,7 @@ def loadCam(args, id, cam_info, resolution_scale):
         uid=id,
         data_device=args.data_device,
         time=cam_info.time,
+        mask=mask
     )
 
 

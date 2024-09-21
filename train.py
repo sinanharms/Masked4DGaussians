@@ -715,7 +715,7 @@ if __name__ == "__main__":
         "--save_iterations",
         nargs="+",
         type=int,
-        default=[14000, 20000, 30_000, 45000, 60000],
+        default=[5000, 7000, 10000, 14000, 20000, 30_000, 45000, 60000],
     )
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])

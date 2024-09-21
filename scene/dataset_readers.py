@@ -129,17 +129,25 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, mask_folder
         image_path = os.path.join(images_folder, os.path.basename(extr.name))
         image_name = extr.name
         image = Image.open(image_path)
-        image = PILtoTorch(image, None)
-
         mask = None
         mask_path = None
         if mask_folder is not None and mask_folder != "":
             possible_mask_path = os.path.join(mask_folder, f"{extr.name}.png")
             if os.path.exists(possible_mask_path):
                 mask = Image.open(possible_mask_path)
-                assert (
-                    mask.size == image.size
-                ), f"image dimesnion{image.size} does not match mask dimension{mask.size}"
+                if mask.size != image.size:
+                    mask = mask.resize(image.size, Image.NEAREST)
+                    print(
+                        f"Mask {possible_mask_path} has different size than image {image_path}. Resizing to match."
+                    )
+                mask.convert("1")
+                mask = np.array(mask)
+                mask = torch.from_numpy(mask).bool()
+                mask_path = possible_mask_path
+                mask_count += 1
+
+        image = PILtoTorch(image, None)
+
 
         cam_info = CameraInfo(
             uid=uid,
@@ -148,14 +156,19 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder, mask_folder
             FovY=FovY,
             FovX=FovX,
             image=image,
+            mask=mask,
             image_path=image_path,
+            mask_path=mask_path,
             image_name=image_name,
             width=width,
             height=height,
             time=float(idx / len(cam_extrinsics)),
-            mask=None,
+            
         )  # default by monocular settings.
         cam_infos.append(cam_info)
+    if mask_folder != "":
+        sys.stdout.write("\n")
+        sys.stdout.write(f"Read {mask_count} masks in {mask_folder}")
     sys.stdout.write("\n")
     return cam_infos
 
@@ -196,7 +209,7 @@ def storePly(path, xyz, rgb):
     ply_data.write(path)
 
 
-def readColmapSceneInfo(path, images, eval, llffhold=8):
+def readColmapSceneInfo(path, images, eval, llffhold=8, masks=None):
     try:
         cameras_extrinsic_file = os.path.join(path, "sparse/0", "images.bin")
         cameras_intrinsic_file = os.path.join(path, "sparse/0", "cameras.bin")
@@ -209,10 +222,12 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
         cam_intrinsics = read_intrinsics_text(cameras_intrinsic_file)
 
     reading_dir = "images" if images == None else images
+    masks = "masks" if masks == None else masks
     cam_infos_unsorted = readColmapCameras(
         cam_extrinsics=cam_extrinsics,
         cam_intrinsics=cam_intrinsics,
         images_folder=os.path.join(path, reading_dir),
+        mask_folder=os.path.join(path, masks)
     )
     cam_infos = sorted(cam_infos_unsorted.copy(), key=lambda x: x.image_name)
     # breakpoint()
